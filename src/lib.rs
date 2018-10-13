@@ -1,2 +1,2 @@
-mod controller;
-
+#[macro_use]
+pub mod controller;
