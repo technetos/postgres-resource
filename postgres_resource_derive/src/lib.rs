@@ -23,6 +23,8 @@ pub fn resource_controller(input: proc_macro::TokenStream) -> proc_macro::TokenS
     let gen = quote_spanned! {Span::call_site()=>
         pub struct #controller;
 
+        impl ResourceDB for #controller {}
+
         impl ResourceWithId for #controller {
             type ModelWithId = #model_with_id;
         }
@@ -39,32 +41,30 @@ pub fn resource_controller(input: proc_macro::TokenStream) -> proc_macro::TokenS
             type SQLType = SqlType;
         }
 
-        use crate::db::establish_connection as connection;
-
         impl ResourceController for #controller {
             fn create(&self, model: &Self::Model) -> Result<Self::ModelWithId, Error> {
                 Ok(insert_into(table)
                    .values(model)
-                   .get_result(&connection())?)
+                   .get_result(&self.connection())?)
             }
 
             fn get_one(&self, by: Expr<table>) -> Result<Self::ModelWithId, Error> {
                 Ok(table
                    .filter(by)
-                   .get_result::<Self::ModelWithId>(&connection())?)
+                   .get_result::<Self::ModelWithId>(&self.connection())?)
             }
 
             fn get_all(&self, by: Expr<table>) -> Result<Vec<Self::ModelWithId>, Error> {
                 Ok(table
                    .filter(by)
-                   .get_results::<Self::ModelWithId>(&connection())?)
+                   .get_results::<Self::ModelWithId>(&self.connection())?)
             }
 
             fn update(&self, model: &Self::Model, by: Expr<table>) -> Result<Self::ModelWithId, Error> {
                 Ok(update(table)
                    .filter(by)
                    .set(model)
-                   .get_result::<Self::ModelWithId>(&connection())?)
+                   .get_result::<Self::ModelWithId>(&self.connection())?)
             }
         }
     };
