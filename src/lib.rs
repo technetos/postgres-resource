@@ -1,7 +1,2 @@
-#[macro_use]
-extern crate mashup;
-
-#[doc(hidden)]
-pub use mashup::*;
-
 pub mod controller;
+pub use postgres_resource_derive::resource_controller;

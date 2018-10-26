@@ -1,0 +1,13 @@
+[package]
+name = "postgres_resource_derive"
+version = "0.1.0"
+authors = ["technetos <mrgould93@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+syn = "0.15.13"
+quote = "0.6.8"
+proc-macro2 = "0.4.20"
+
+[lib]
+proc-macro = true
