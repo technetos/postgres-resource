@@ -1,8 +1,14 @@
-pub use postgres_resource_derive::resource_controller;
+pub use postgres_resource_derive::resource;
 
 use diesel::{
-    self, expression::BoxableExpression, pg::{PgConnection, Pg}, prelude::*, result::Error, sql_types::Bool, Connection,
-}; 
+    self,
+    expression::BoxableExpression,
+    pg::{Pg, PgConnection},
+    prelude::*,
+    result::Error,
+    sql_types::Bool,
+    Connection,
+};
 
 pub trait ResourceDB {
     fn connection(&self) -> PgConnection {
