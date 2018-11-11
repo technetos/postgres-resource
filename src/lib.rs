@@ -1,4 +1,4 @@
-pub use postgres_resource_derive::{resource, resource_controller};
+pub use postgres_resource_derive::resource;
 
 use diesel::{
     self,
