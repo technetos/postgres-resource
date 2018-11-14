@@ -21,6 +21,10 @@ struct World {
 }
 
 fn main() {
+    println!("{:?}", get_world_by_name("Mars"));
+}
+
+fn create_planets() {
     println!("{:#?}", create_world("Mercury").expect("already exists"));
     println!("{:#?}", create_world("Venus").expect("already exists"));
     println!("{:#?}", create_world("Earth").expect("already exists"));
@@ -34,4 +38,9 @@ fn create_world(name: &str) -> Result<WorldWithId, ()> {
     }).map_err(|_| ())?;
 
     return Ok(modelWithId);
+}
+
+fn get_world_by_name(string: &'static str) -> Result<WorldWithId, &'static str> {
+    let model = WorldController.get_one(Box::new(worlds::name.eq(string))).map_err(|_| "not found")?;
+    Ok(model)
 }

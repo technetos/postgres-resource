@@ -11,12 +11,21 @@ extern crate quote;
 type TokenStream = proc_macro::TokenStream;
 
 use proc_macro2::Span;
-use syn::Ident;
 use syn::{
     parse::{Parse, ParseStream, Result},
     punctuated::Punctuated,
-    token, Attribute,
+    token, Attribute, Ident,
 };
+
+trait IdentExt {
+    fn append(&self, string: &str) -> Ident;
+}
+
+impl IdentExt for syn::Ident {
+    fn append(&self, string: &str) -> Ident {
+        Ident::new(&format!("{}{}", self, string), self.span())
+    }
+}
 
 #[derive(Debug)]
 struct Struct {
@@ -67,14 +76,18 @@ impl Field {
         }
     }
 
-    fn optional(&self) -> bool {
-        let mut ret = false;
+    fn ty(&self) -> proc_macro2::TokenStream {
+        let ty = &self.ty;
+
+        let mut ty_tokens = quote!(#ty);
+
         self.walk_attrs(&mut |ref ident| {
             if *ident == "optional" {
-                ret = true;
+                ty_tokens = quote!(Option<#ty>);
             }
         });
-        ret
+
+        ty_tokens
     }
 
     fn fk(&self) -> bool {
@@ -124,6 +137,18 @@ struct Schema {
     pub schema: syn::Path,
 }
 
+impl Schema {
+    fn sql_type(&self) -> proc_macro2::TokenStream {
+        let schema = &self.schema;
+        quote!(#schema::SqlType)
+    }
+
+    fn table(&self) -> proc_macro2::TokenStream {
+        let schema = &self.schema;
+        quote!(#schema::table)
+    }
+}
+
 struct Table {
     pub table_token: Ident,
     pub assignment_token: Token![=],
@@ -166,110 +191,82 @@ struct Parsed {
 }
 
 impl Parsed {
-    fn gen_model_with_id_fields(&self) -> Vec<proc_macro2::TokenStream> {
+    fn model_with_id_fields(&self) -> Vec<proc_macro2::TokenStream> {
         let mut fields = Vec::new();
         fields.push(quote!(pub id: i32));
 
         let model_name = &self.input.ident;
-
         let model_name_lower = Ident::new(&self.input.camel_to_snake(), Span::call_site());
 
-        let model_with_id_model_field = quote!(pub #model_name_lower: #model_name);
-
-        fields.push(model_with_id_model_field);
+        fields.push(quote!(pub #model_name_lower: #model_name));
 
         self.input.fields.iter().for_each(|field| {
             if field.fk() {
-                let ty = &field.ty;
+                let ty = field.ty();
                 let name = &field.name;
-
-                if field.optional() {
-                    fields.push(quote!(pub #name: Option<#ty>));
-                } else {
-                    fields.push(quote!(pub #name: #ty));
-                }
+                fields.push(quote!(pub #name: #ty));
             }
         });
         fields
     }
 
-    fn gen_model_with_id_ident(&self) -> Ident {
-        Ident::new(&format!("{}WithId", self.input.ident), Span::call_site())
+    fn model_with_id_ident(&self) -> Ident {
+        self.input.ident.append("WithId")
     }
 
-    fn gen_model_with_id(&self) -> proc_macro2::TokenStream {
-        let model_with_id = self.gen_model_with_id_ident();
-        let table_name = &self.attr.table.table;
-        let model_with_id_fields = self.gen_model_with_id_fields();
+    fn model_with_id(&self) -> proc_macro2::TokenStream {
+        let model_with_id = self.model_with_id_ident();
+        let table = &self.attr.table.table;
+        let fields = self.model_with_id_fields();
 
         quote_spanned! {Span::call_site()=>
             #[derive(Serialize, Deserialize, FromSqlRow, Associations, Identifiable, Debug, PartialEq)]
-            #[table_name = #table_name]
-
+            #[table_name = #table]
             pub struct #model_with_id {
-                #(#model_with_id_fields,)*
+                #(#fields,)*
             }
         }
     }
 
-    fn gen_model_fields(&self) -> Vec<proc_macro2::TokenStream> {
+    fn model_fields(&self) -> Vec<proc_macro2::TokenStream> {
         let mut fields = Vec::new();
         self.input.fields.iter().for_each(|field| {
             if !field.fk() {
-                let ty = &field.ty;
+                let ty = field.ty();
                 let name = &field.name;
-
-                if field.optional() {
-                    fields.push(quote!(pub #name: Option<#ty>));
-                } else {
-                    fields.push(quote!(pub #name: #ty));
-                }
+                fields.push(quote!(pub #name: #ty));
             }
         });
         fields
     }
 
-    fn gen_model(&self) -> proc_macro2::TokenStream {
-        let model_name = &self.input.ident;
-        let model_fields = self.gen_model_fields();
-        let table_name = &self.attr.table.table;
+    fn model(&self) -> proc_macro2::TokenStream {
+        let model = &self.input.ident;
+        let fields = self.model_fields();
+        let table = &self.attr.table.table;
 
         quote_spanned! {Span::call_site()=>
             #[derive(Serialize, Deserialize, FromSqlRow, Insertable, AsChangeset, Debug, PartialEq)]
-            #[table_name = #table_name]
-            pub struct #model_name {
-                #(#model_fields,)*
+            #[table_name = #table]
+            pub struct #model {
+                #(#fields,)*
             }
         }
     }
 
-    fn gen_table(&self) -> proc_macro2::TokenStream {
-        let schema = &self.attr.schema.schema;
-        quote_spanned!(Span::call_site()=> #schema::table)
-    }
-
-    fn gen_sql_type(&self) -> proc_macro2::TokenStream {
-        let schema = &self.attr.schema.schema;
-        quote_spanned!(Span::call_site()=> #schema::SqlType)
-    }
-
-    fn gen_queryable_row(&self) -> proc_macro2::TokenStream {
+    fn queryable_row(&self) -> proc_macro2::TokenStream {
         let mut fields = Vec::new();
         fields.push(quote!(i32));
 
         self.input.fields.iter().for_each(|field| {
-            let ty = &field.ty;
-            if field.optional() {
-                fields.push(quote!(Option<#ty>));
-            } else {
-                fields.push(quote!(#ty));
-            }
+            let ty = field.ty();
+            fields.push(quote!(#ty));
         });
 
-        quote_spanned!(Span::call_site()=> type Row = (#(#fields,)*);)
+        quote!(type Row = (#(#fields,)*);)
     }
 
-    fn gen_queryable_inner_fields(&self) -> Vec<proc_macro2::TokenStream> {
+    fn queryable_inner_fields(&self) -> Vec<proc_macro2::TokenStream> {
         let mut fields = Vec::new();
         let mut inner_fields = Vec::new();
 
@@ -309,9 +306,9 @@ impl Parsed {
         fields
     }
 
-    fn gen_queryable_fields(&self) -> proc_macro2::TokenStream {
-        let fields = self.gen_queryable_inner_fields();
-        let model_with_id = self.gen_model_with_id_ident();
+    fn queryable_fields(&self) -> proc_macro2::TokenStream {
+        let fields = self.queryable_inner_fields();
+        let model_with_id = self.model_with_id_ident();
 
         quote! {
             #model_with_id {
@@ -320,11 +317,11 @@ impl Parsed {
         }
     }
 
-    fn gen_queryable_impl(&self) -> proc_macro2::TokenStream {
-        let fields = self.gen_queryable_fields();
-        let model_with_id = self.gen_model_with_id_ident();
-        let sql_type = self.gen_sql_type();
-        let row = self.gen_queryable_row();
+    fn queryable_impl(&self) -> proc_macro2::TokenStream {
+        let fields = self.queryable_fields();
+        let model_with_id = self.model_with_id_ident();
+        let sql_type = self.attr.schema.sql_type();
+        let row = self.queryable_row();
 
         quote_spanned! {Span::call_site()=>
             impl diesel::Queryable<#sql_type, diesel::pg::Pg> for #model_with_id {
@@ -338,12 +335,12 @@ impl Parsed {
 
     fn gen_resource_controller(&self) -> proc_macro2::TokenStream {
         let model = &self.input.ident;
-        let model_with_id = self.gen_model_with_id_ident();
-        let controller = Ident::new(&format!("{}Controller", &self.input.ident), Span::call_site());
-        let table = self.gen_table();
-        let sql_type = self.gen_sql_type();
+        let model_with_id = self.model_with_id_ident();
+        let controller = &self.input.ident.append("Controller");
+        let table = self.attr.schema.table();
+        let sql_type = self.attr.schema.sql_type();
 
-        quote_spanned! {Span::call_site()=>
+        quote! {
             pub struct #controller;
 
             impl ResourceDB for #controller {}
@@ -499,10 +496,10 @@ pub fn resource(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let parsed = Parsed { attr: parsed_attr, input: parsed_struct };
 
-    let model_with_id = parsed.gen_model_with_id();
-    let model = parsed.gen_model();
+    let model_with_id = parsed.model_with_id();
+    let model = parsed.model();
     let resource_controller = parsed.gen_resource_controller();
-    let queryable = parsed.gen_queryable_impl();
+    let queryable = parsed.queryable_impl();
 
     let generated = quote_spanned! {Span::call_site()=>
         #model_with_id
