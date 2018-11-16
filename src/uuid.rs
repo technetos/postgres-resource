@@ -33,3 +33,9 @@ impl From<uuid::Uuid> for Uuid {
         Uuid(uuid)
     }
 }
+
+impl Uuid {
+    pub fn new() -> uuid::Uuid {
+        uuid::Uuid::new_v4()
+    }
+}
