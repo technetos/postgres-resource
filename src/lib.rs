@@ -1,7 +1,11 @@
+#![feature(custom_attribute)]
 pub use postgres_resource_derive::resource;
+pub mod uuid;
+
+#[macro_use]
+extern crate diesel;
 
 use diesel::{
-    self,
     expression::BoxableExpression,
     pg::{Pg, PgConnection},
     prelude::*,
