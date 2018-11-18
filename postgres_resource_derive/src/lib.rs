@@ -386,6 +386,10 @@ impl Parsed {
                        .set(model)
                        .get_result::<Self::ModelWithId>(&self.connection())?)
                 }
+
+                fn delete(&self, by: Expr<#table>) -> Result<usize, Error> {
+                    Ok(delete(#table).filter(by).execute(&self.connection())?)
+                }
             }
         }
     }

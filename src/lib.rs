@@ -51,4 +51,5 @@ where
     fn get_one(&self, by: Expr<Self::DBTable>) -> Result<Self::ModelWithId>;
     fn get_all(&self, by: Expr<Self::DBTable>) -> Result<Vec<Self::ModelWithId>>;
     fn update(&self, model: &Self::Model, by: Expr<Self::DBTable>) -> Result<Self::ModelWithId>;
+    fn delete(&self, by: Expr<Self::DBTable>) -> Result<usize>;
 }
