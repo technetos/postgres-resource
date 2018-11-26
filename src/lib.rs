@@ -12,7 +12,11 @@ use diesel::{
 
 pub trait ResourceDB {
     fn connection(&self) -> PgConnection {
-        let env_var = std::env::var("DATABASE_URL").expect("DATABASE_URL not set");
+        self.connection_string("DATABASE_URL")
+    }
+
+    fn connection_string(&self, string: &str) -> PgConnection {
+        let env_var = std::env::var(&string).expect(&format!("{} not set", &string));
         PgConnection::establish(&env_var[..]).expect("Unable to establish connection to database")
     }
 }

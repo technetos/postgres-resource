@@ -66,13 +66,7 @@ struct Field {
 impl Field {
     fn walk_attrs(&self, callback: &mut FnMut(&Ident)) {
         if let Some(ref field_attrs) = self.attr {
-            field_attrs.iter().for_each(|a| {
-                let Attribute { path, .. } = a;
-                let syn::Path { segments, .. } = path;
-                let syn::PathSegment { ident, .. } = &segments[0];
-
-                callback(ident);
-            })
+            field_attrs.iter().for_each(|a| callback(&a.path.segments[0].ident))
         }
     }
 
@@ -191,6 +185,32 @@ struct Parsed {
 }
 
 impl Parsed {
+    fn db_connection(&self) -> proc_macro2::TokenStream {
+        let mut connection = quote!(&self.connection());
+        let mut var: Option<&Ident> = None;
+        let mut url: Option<proc_macro2::Literal> = None;
+
+        self.input.attrs.iter().for_each(|a| {
+            let ident = &a.path.segments[0].ident;
+            if ident == "DBVAR" {
+                var = Some(ident);
+            }
+            &a.tts.clone().into_iter().for_each(|token| {
+                if let proc_macro2::TokenTree::Literal(lit) = token {
+                    url = Some(lit);
+                }
+            });
+        });
+
+        if let Some(env_var) = var {
+            if let Some(db_url) = url {
+                connection = quote!(&self.connection_string(#db_url));
+            }
+        }
+
+        connection
+    }
+
     fn model_with_id_fields(&self) -> Vec<proc_macro2::TokenStream> {
         let mut fields = Vec::new();
         fields.push(quote!(pub id: i32));
@@ -339,6 +359,7 @@ impl Parsed {
         let controller = &self.input.ident.append("Controller");
         let table = self.attr.schema.table();
         let sql_type = self.attr.schema.sql_type();
+        let connection = self.db_connection();
 
         quote! {
             pub struct #controller;
@@ -365,30 +386,30 @@ impl Parsed {
                 fn create(&self, model: &Self::Model) -> Result<Self::ModelWithId, Error> {
                     Ok(insert_into(#table)
                        .values(model)
-                       .get_result(&self.connection())?)
+                       .get_result(#connection)?)
                 }
 
                 fn get_one(&self, by: Expr<#table>) -> Result<Self::ModelWithId, Error> {
                     Ok(#table
                        .filter(by)
-                       .get_result::<Self::ModelWithId>(&self.connection())?)
+                       .get_result::<Self::ModelWithId>(#connection)?)
                 }
 
                 fn get_all(&self, by: Expr<#table>) -> Result<Vec<Self::ModelWithId>, Error> {
                     Ok(#table
                        .filter(by)
-                       .get_results::<Self::ModelWithId>(&self.connection())?)
+                       .get_results::<Self::ModelWithId>(#connection)?)
                 }
 
                 fn update(&self, model: &Self::Model, by: Expr<#table>) -> Result<Self::ModelWithId, Error> {
                     Ok(update(#table)
                        .filter(by)
                        .set(model)
-                       .get_result::<Self::ModelWithId>(&self.connection())?)
+                       .get_result::<Self::ModelWithId>(#connection)?)
                 }
 
                 fn delete(&self, by: Expr<#table>) -> Result<usize, Error> {
-                    Ok(delete(#table).filter(by).execute(&self.connection())?)
+                    Ok(delete(#table).filter(by).execute(#connection)?)
                 }
             }
         }
