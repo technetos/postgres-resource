@@ -104,11 +104,3 @@ impl<'i> Builder<'i> for InnerFields {
     }
 }
 
-pub struct Table;
-
-impl<'i> Builder<'i> for Table {
-    fn build(self, input: &'i Input) -> Result<proc_macro2::TokenStream> {
-        let model = camel_to_snake(&input.parsed_struct.ident.to_string()[..]) + "s";
-        quote!(crate::schema::#model)
-    }
-}
