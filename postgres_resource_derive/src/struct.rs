@@ -8,7 +8,7 @@ use syn::{
     MetaNameValue,
 };
 
-use crate::{field::*, attr::*, IdentExt};
+use crate::{field::*, attr::*, IdentExt, AsSnake, camel_to_snake};
 
 #[derive(Debug)]
 pub struct Struct {
@@ -31,14 +31,26 @@ impl Parse for Struct {
 
 impl Struct {
     pub fn model_name(&self) -> Ident {
-        self.ident.clone()
+        self.ident.append("WithId")
     }
 
     pub fn inner_model_name(&self) -> Ident {
-        self.ident.append("WithId")
+        self.ident.clone()
     }
 
     pub fn controller_name(&self) -> Ident {
         self.ident.append("Controller")
+    }
+}
+
+impl AsSnake for Struct {
+    fn as_snake(&self) -> Ident {
+        let snake = camel_to_snake(&self.ident.to_string()[..]);
+        Ident::new(&snake[..], Span::call_site())
+    }
+
+    fn as_snake_plural(&self) -> Ident {
+        let plural_snake = camel_to_snake(&(self.ident.to_string() + "s")[..]);
+        Ident::new(&plural_snake[..], Span::call_site())
     }
 }

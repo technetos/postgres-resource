@@ -34,6 +34,11 @@ impl IdentExt for syn::Ident {
     }
 }
 
+trait AsSnake {
+    fn as_snake(&self) -> Ident;
+    fn as_snake_plural(&self) -> Ident;
+}
+
 fn camel_to_snake(string: &str) -> String {
     let mut result = String::with_capacity(string.len());
     result.push_str(&string[..1].to_lowercase());
@@ -51,111 +56,14 @@ fn camel_to_snake(string: &str) -> String {
 }
 
 impl Input {
-    ////    fn db_connection(&self) -> proc_macro2::TokenStream {
-    ////        let mut connection = quote!(&self.connection());
-    ////        let key = String::from("database");
-    ////        let attrs = &self.input.attrs;
-    ////        if attrs.contains_key(&key) {
-    ////            connection = attrs.get(&key).unwrap().clone();
-    ////        }
-    ////        connection
-    ////    }
-    //
-    //    fn model_with_id_fields(&self) -> Vec<proc_macro2::TokenStream> {
-    //        let mut fields = Vec::new();
-    //        fields.push(quote!(pub id: i32));
-    //
-    //        let model_name = &self.input.ident;
-    //        let model_name_lower = Ident::new(&camel_to_snake(&self.input.ident.to_string()), Span::call_site());
-    //
-    //        fields.push(quote!(pub #model_name_lower: #model_name));
-    //
-    //        self.input.fields.iter().for_each(|field| {
-    //            if field.fk() {
-    //                let ty = field.ty();
-    //                let name = &field.name;
-    //                fields.push(quote!(pub #name: #ty));
-    //            }
-    //        });
-    //        fields
-    //    }
-    //
-    //    fn model_fields(&self) -> Vec<proc_macro2::TokenStream> {
-    //    }
-    //
-    //    fn queryable_row(&self) -> proc_macro2::TokenStream {
-    //        let mut fields = Vec::new();
-    //        fields.push(quote!(i32));
-    //
-    //        self.input.fields.iter().for_each(|field| {
-    //            let ty = field.ty();
-    //            fields.push(quote!(#ty));
-    //        });
-    //
-    //        quote!(type Row = (#(#fields,)*);)
-    //    }
-    //
-    //    fn queryable_inner_fields(&self) -> Vec<proc_macro2::TokenStream> {
-    //        let mut fields = Vec::new();
-    //        let mut inner_fields = Vec::new();
-    //
-    //        let model_name = &self.input.ident;
-    //        let model_name_lower = Ident::new(&camel_to_snake(&self.input.ident.to_string()), Span::call_site());
-    //
-    //        let mut index = 0;
-    //
-    //        // Push id
-    //        let idx = syn::Index::from(index);
-    //        fields.push(quote!(id: row.#idx));
-    //
-    //        self.input.fields.iter().enumerate().for_each(|(i, field)| {
-    //            let field_name = &field.name;
-    //            if !field.fk() {
-    //                index = i + 1;
-    //                let idx = syn::Index::from(index);
-    //                inner_fields.push(quote!(#field_name: row.#idx));
-    //            }
-    //        });
-    //
-    //        let generated_inner_fields = quote!({ #(#inner_fields,)* });
-    //
-    //        // Push inner fields
-    //        fields.push(quote!(#model_name_lower: #model_name #generated_inner_fields));
-    //
-    //        // Push remaining fields
-    //        self.input.fields.iter().for_each(|field| {
-    //            if field.fk() {
-    //                index = index + 1;
-    //                let name = &field.name;
-    //                let idx = syn::Index::from(index);
-    //                fields.push(quote!(#name: row.#idx));
-    //            }
-    //        });
-    //
-    //        fields
-    //    }
-    //
-    ////    fn gen_queryable(&self) -> proc_macro2::TokenStream {
-    ////        let model_with_id = self.model_with_id_ident();
-    ////        let sql_type = self.input.sql_type();
-    ////        let row = self.queryable_row();
-    ////        let queryable_fields = self.queryable_inner_fields();
-    ////
-    ////        quote! {
-    ////            impl diesel::Queryable<#sql_type, diesel::pg::Pg> for #model_with_id {
-    ////                #row
-    ////                fn build(row: Self::Row) -> Self {
-    ////                    #queryable_fields
-    ////                }
-    //            }
-    //        }
-    //    }
-    //
+    fn gen_queryable(&self) -> Result<proc_macro2::TokenStream> {
+        Ok(Queryable.build(&self)?)
+    }
 
     fn gen_model(&self) -> Result<proc_macro2::TokenStream> {
         let table_macro = InferredTableMacro.build(&self)?;
-        let model_with_id = ModelWithId(Fields).build(&self)?;
-        let model = Model(InnerFields).build(&self)?;
+        let model_with_id = ModelWithId.build(&self)?;
+        let model = Model.build(&self)?;
 
         Ok(quote! {
             #[derive(Serialize, Deserialize, FromSqlRow, Associations, Identifiable, Debug, PartialEq)]
@@ -168,70 +76,63 @@ impl Input {
         })
     }
     
- //   fn gen_controller(&self) -> proc_macro2::TokenStream {
- //       let model_with_id = self.parsed_struct.model_name();
- //       let model = self.parsed_struct.inner_model_name();
- //       let controller = self.parsed_struct.controller_name();
+    fn gen_controller(&self) -> Result<proc_macro2::TokenStream> {
+        let model_with_id = self.parsed_struct.model_name();
+        let model = self.parsed_struct.inner_model_name();
+        let controller = self.parsed_struct.controller_name();
 
- //       let table = self.input.table();
- //       let sql_type = self.input.sql_type();
- //       //        let connection = self.db_connection();
+        let schema = Table.build(&self)?;
 
- //       let connection = quote!();
+        let connection = quote!(&self.connection());
 
- //       quote! {
- //           pub struct #controller;
+        Ok(quote! {
+            pub struct #controller;
 
- //           impl ResourceDB for #controller {}
+            impl ResourceDB for #controller {}
+            impl Resource for #controller {
+                type Model = #model;
+            }
+            impl ResourceWithId for #controller {
+                type ModelWithId = #model_with_id;
+            }
+            impl ResourceTable for #controller {
+                type DBTable = #schema::table;
+            }
+            impl ResourceSql for #controller {
+                type SQLType = #schema::SqlType;
+            }
+            impl ResourceController for #controller {
+                fn create(&self, model: &Self::Model) -> Result<Self::ModelWithId, Error> {
+                    Ok(insert_into(#schema::table)
+                       .values(model)
+                       .get_result(#connection)?)
+                }
 
- //           impl ResourceWithId for #controller {
- //               type ModelWithId = #model_with_id;
- //           }
+                fn get_one(&self, by: Expr<#schema::table>) -> Result<Self::ModelWithId, Error> {
+                    Ok(#schema::table
+                       .filter(by)
+                       .get_result::<Self::ModelWithId>(#connection)?)
+                }
 
- //           impl Resource for #controller {
- //               type Model = #model;
- //           }
+                fn get_all(&self, by: Expr<#schema::table>) -> Result<Vec<Self::ModelWithId>, Error> {
+                    Ok(#schema::table
+                       .filter(by)
+                       .get_results::<Self::ModelWithId>(#connection)?)
+                }
 
- //           impl ResourceTable for #controller {
- //               type DBTable = #table;
- //           }
+                fn update(&self, model: &Self::Model, by: Expr<#schema::table>) -> Result<Self::ModelWithId, Error> {
+                    Ok(update(#schema::table)
+                       .filter(by)
+                       .set(model)
+                       .get_result::<Self::ModelWithId>(#connection)?)
+                }
 
- //           impl ResourceSql for #controller {
- //               type SQLType = #sql_type;
- //           }
-
- //           impl ResourceController for #controller {
- //               fn create(&self, model: &Self::Model) -> Result<Self::ModelWithId, Error> {
- //                   Ok(insert_into(#table)
- //                      .values(model)
- //                      .get_result(#connection)?)
- //               }
-
- //               fn get_one(&self, by: Expr<#table>) -> Result<Self::ModelWithId, Error> {
- //                   Ok(#table
- //                      .filter(by)
- //                      .get_result::<Self::ModelWithId>(#connection)?)
- //               }
-
- //               fn get_all(&self, by: Expr<#table>) -> Result<Vec<Self::ModelWithId>, Error> {
- //                   Ok(#table
- //                      .filter(by)
- //                      .get_results::<Self::ModelWithId>(#connection)?)
- //               }
-
- //               fn update(&self, model: &Self::Model, by: Expr<#table>) -> Result<Self::ModelWithId, Error> {
- //                   Ok(update(#table)
- //                      .filter(by)
- //                      .set(model)
- //                      .get_result::<Self::ModelWithId>(#connection)?)
- //               }
-
- //               fn delete(&self, by: Expr<#table>) -> Result<usize, Error> {
- //                   Ok(delete(#table).filter(by).execute(#connection)?)
- //               }
- //           }
- //       }
- //   }
+                fn delete(&self, by: Expr<#schema::table>) -> Result<usize, Error> {
+                    Ok(delete(#schema::table).filter(by).execute(#connection)?)
+                }
+            }
+        })
+    }
 }
 //
 ///
@@ -333,14 +234,18 @@ impl Input {
 /// ```
 
 #[proc_macro_attribute]
-pub fn resource(attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn resource(_: TokenStream, input: TokenStream) -> TokenStream {
     let parsed_struct = parse_macro_input!(input as Struct);
-
     let parsed = Input { parsed_struct };
-    println!("{}", parsed.gen_model().unwrap());
+
+    let model = parsed.gen_model().unwrap();
+    let controller = parsed.gen_controller().unwrap();
+    let queryable = parsed.gen_queryable().unwrap();
 
     let generated = quote_spanned! {Span::call_site()=>
-
+        #model
+        #queryable
+        #controller
     };
 
     generated.into()

@@ -41,12 +41,12 @@ impl Attrs {
     fn parse_attr(attr: &Attribute, expected: &str) -> Result<Option<LitStr>> {
         match attr.parse_meta()? {
             NameValue(MetaNameValue { lit: Lit::Str(lit_str), .. }) => {
-                lit_str.parse().map(Some)
+                Ok(Some(lit_str))
             }
             _ => {
                 let error_span = attr.bracket_token.span;
                 let message = &format!("expected #[{} = \"...\"]", expected);
-                Err(syn::Error::new(error_span, message))
+                Err(Error::new(error_span, message))
             }
         }
     }
