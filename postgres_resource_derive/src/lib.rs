@@ -14,15 +14,13 @@ mod attr;
 mod builder;
 mod field;
 mod r#struct;
+mod model;
+mod queryable;
 
-use crate::{attr::*, builder::*, field::*, r#struct::*};
+use crate::{model::*, queryable::*, builder::*, r#struct::*};
 
 use proc_macro2::Span;
-use syn::{
-    parse::{Parse, ParseStream, Result},
-    punctuated::Punctuated,
-    token, Attribute, Ident,
-};
+use syn::{parse::Result, Ident};
 
 trait IdentExt {
     fn append(&self, string: &str) -> Ident;
@@ -61,7 +59,7 @@ impl Input {
     }
 
     fn gen_model(&self) -> Result<proc_macro2::TokenStream> {
-        let table_macro = InferredTableMacro.build(&self)?;
+        let table_macro = TableMacro.build(&self)?;
         let model_with_id = ModelWithId.build(&self)?;
         let model = Model.build(&self)?;
 
@@ -75,13 +73,13 @@ impl Input {
             #model
         })
     }
-    
+
     fn gen_controller(&self) -> Result<proc_macro2::TokenStream> {
-        let model_with_id = self.parsed_struct.model_name();
+        let model_with_id = self.parsed_struct.model_name_with_id();
         let model = self.parsed_struct.inner_model_name();
         let controller = self.parsed_struct.controller_name();
 
-        let schema = Table.build(&self)?;
+        let schema = Schema.build(&self)?;
 
         let connection = quote!(&self.connection());
 
@@ -134,7 +132,7 @@ impl Input {
         })
     }
 }
-//
+
 ///
 /// ### Model Definition
 /// ```

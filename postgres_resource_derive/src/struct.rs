@@ -1,14 +1,11 @@
-use proc_macro2::{Span, TokenTree::Literal};
-use std::collections::HashMap;
+use proc_macro2::Span;
 use syn::{
     parse::{Parse, ParseStream, Result},
     punctuated::Punctuated,
-    token, Attribute, Ident,
-    Meta::*,
-    MetaNameValue,
+    Ident,
 };
 
-use crate::{field::*, attr::*, IdentExt, AsSnake, camel_to_snake};
+use crate::{attr::*, camel_to_snake, field::*, AsSnake, IdentExt};
 
 #[derive(Debug)]
 pub struct Struct {
@@ -30,7 +27,7 @@ impl Parse for Struct {
 }
 
 impl Struct {
-    pub fn model_name(&self) -> Ident {
+    pub fn model_name_with_id(&self) -> Ident {
         self.ident.append("WithId")
     }
 

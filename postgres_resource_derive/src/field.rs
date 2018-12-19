@@ -1,7 +1,6 @@
 use syn::{
     parse::{Parse, ParseStream, Result},
-    punctuated::Punctuated,
-    token, Attribute, Ident,
+    Attribute, Ident,
 };
 
 #[derive(Debug, PartialEq)]

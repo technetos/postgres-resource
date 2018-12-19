@@ -1,18 +1,14 @@
-use proc_macro2::{Span, TokenTree::Literal};
 use syn::{
     parse::{Parse, ParseStream, Result},
-    punctuated::Punctuated,
-    token, Attribute, Ident, LitStr,
+    Attribute, Error, Lit, LitStr,
     Meta::*,
     MetaNameValue,
-    Error,
-    Lit,
 };
 
 #[derive(Debug)]
 pub struct Attrs {
-    db_conn: Option<LitStr>,
-    table: Option<LitStr>,
+    pub db_conn: Option<LitStr>,
+    pub table: Option<LitStr>,
 }
 
 impl Parse for Attrs {
@@ -31,8 +27,6 @@ impl Parse for Attrs {
             }
         }
 
-        println!("{:#?}", table);
-
         Ok(Attrs { db_conn, table })
     }
 }
@@ -40,9 +34,7 @@ impl Parse for Attrs {
 impl Attrs {
     fn parse_attr(attr: &Attribute, expected: &str) -> Result<Option<LitStr>> {
         match attr.parse_meta()? {
-            NameValue(MetaNameValue { lit: Lit::Str(lit_str), .. }) => {
-                Ok(Some(lit_str))
-            }
+            NameValue(MetaNameValue { lit: Lit::Str(lit_str), .. }) => Ok(Some(lit_str)),
             _ => {
                 let error_span = attr.bracket_token.span;
                 let message = &format!("expected #[{} = \"...\"]", expected);
@@ -51,4 +43,3 @@ impl Attrs {
         }
     }
 }
-
