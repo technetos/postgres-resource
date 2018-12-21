@@ -1,3 +1,5 @@
+#![feature(custom_attribute)]
+
 #[macro_use]
 extern crate diesel as other_diesel;
 
@@ -5,7 +7,7 @@ extern crate diesel as other_diesel;
 extern crate serde_derive;
 
 use diesel::{
-    self, insert_into, prelude::*, result::Error, update, Associations, FromSqlRow, Identifiable,
+    self, delete, insert_into, prelude::*, result::Error, update, Associations, FromSqlRow, Identifiable,
     Insertable, Queryable,
 };
 use postgres_resource::*;
@@ -13,8 +15,8 @@ use uuid::Uuid;
 use crate::schema::worlds;
 mod schema;
 
-
-#[resource(schema = worlds, table = "worlds")]
+#[resource]
+#[table = "worlds"]
 struct World {
     uuid: Uuid,
     name: String,
