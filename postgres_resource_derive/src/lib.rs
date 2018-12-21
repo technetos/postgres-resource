@@ -75,13 +75,12 @@ impl Input {
     }
 
     fn gen_controller(&self) -> Result<proc_macro2::TokenStream> {
-        let model_with_id = self.parsed_struct.model_name_with_id();
-        let model = self.parsed_struct.inner_model_name();
-        let controller = self.parsed_struct.controller_name();
-
         let schema = Schema.build(&self)?;
+        let connection = DatabaseConnection.build(&self)?;
 
-        let connection = quote!(&self.connection());
+        let model = self.parsed_struct.inner_model_name();
+        let model_with_id = self.parsed_struct.model_name_with_id();
+        let controller = self.parsed_struct.controller_name();
 
         Ok(quote! {
             pub struct #controller;

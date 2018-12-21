@@ -41,3 +41,23 @@ impl<'i> Builder<'i> for Schema {
         Ok(quote!(crate::schema::#model))
     }
 }
+
+struct DefaultDatabaseConnection;
+
+impl<'i> Builder<'i> for DefaultDatabaseConnection {
+    fn build(self, _: &'i Input) -> Result<proc_macro2::TokenStream> {
+        Ok(quote!(&self.connection()))
+    }
+}
+        
+pub struct DatabaseConnection;
+
+impl<'i> Builder<'i> for DatabaseConnection {
+    fn build(self, input: &'i Input) -> Result<proc_macro2::TokenStream> {
+        if let Some(ref env_var) = input.parsed_struct.attrs.db_conn {
+            Ok(quote!(&self.connection_string(#env_var)))
+        } else {
+            DefaultDatabaseConnection.build(input)
+        }
+    }
+}
