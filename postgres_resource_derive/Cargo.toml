@@ -5,7 +5,7 @@ authors = ["technetos <mrgould93@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-syn = { version = "0.15.23", features = ["extra-traits", "full"]}
+syn = { version = "0.15.23", features = ["extra-traits", "parsing"]}
 quote = "0.6.8"
 proc-macro2 = "0.4.20"
 
