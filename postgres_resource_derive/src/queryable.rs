@@ -1,7 +1,6 @@
 use crate::{builder::*, IdentExt};
 
 use syn::{parse::Result, Index};
-use heck::SnakeCase;
 
 struct QueryableRow;
 

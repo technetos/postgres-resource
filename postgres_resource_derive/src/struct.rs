@@ -1,4 +1,3 @@
-use proc_macro2::Span;
 use syn::{
     parse::{Parse, ParseStream, Result},
     punctuated::Punctuated,

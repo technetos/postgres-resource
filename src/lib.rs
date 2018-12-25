@@ -21,26 +21,14 @@ pub trait ResourceDB {
     }
 }
 
-pub trait Resource
-where
-    Self: ResourceTable,
-{
-    type Model: Insertable<Self::DBTable>;
+pub trait Resource {
+    type Table: diesel::Table;
+    type Model: Insertable<Self::Table>;
 }
 
-pub trait ResourceWithId
-where
-    Self: ResourceSql,
-{
-    type ModelWithId: Queryable<Self::SQLType, Pg>;
-}
-
-pub trait ResourceTable {
-    type DBTable: diesel::Table;
-}
-
-pub trait ResourceSql {
+pub trait ResourceWithId {
     type SQLType;
+    type ModelWithId: Queryable<Self::SQLType, Pg>;
 }
 
 pub type Expr<T> = Box<BoxableExpression<T, Pg, SqlType = Bool>>;
@@ -52,8 +40,8 @@ where
     Self: Resource + ResourceWithId + ResourceDB,
 {
     fn create(&self, model: &Self::Model) -> Result<Self::ModelWithId>;
-    fn get_one(&self, by: Expr<Self::DBTable>) -> Result<Self::ModelWithId>;
-    fn get_all(&self, by: Expr<Self::DBTable>) -> Result<Vec<Self::ModelWithId>>;
-    fn update(&self, model: &Self::Model, by: Expr<Self::DBTable>) -> Result<Self::ModelWithId>;
-    fn delete(&self, by: Expr<Self::DBTable>) -> Result<usize>;
+    fn get_one(&self, by: Expr<Self::Table>) -> Result<Self::ModelWithId>;
+    fn get_all(&self, by: Expr<Self::Table>) -> Result<Vec<Self::ModelWithId>>;
+    fn update(&self, model: &Self::Model, by: Expr<Self::Table>) -> Result<Self::ModelWithId>;
+    fn delete(&self, by: Expr<Self::Table>) -> Result<usize>;
 }

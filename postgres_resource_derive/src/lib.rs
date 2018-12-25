@@ -51,11 +51,14 @@ impl Input {
 
     fn gen_model(&self) -> Result<proc_macro2::TokenStream> {
         let table_macro = TableMacro.build(&self)?;
+        let belongs_to = BelongsToMacro.build(&self)?;
+
         let model_with_id = ModelWithId.build(&self)?;
         let model = Model.build(&self)?;
 
         Ok(quote! {
             #[derive(Serialize, Deserialize, FromSqlRow, Associations, Identifiable, Debug, PartialEq)]
+            #belongs_to
             #table_macro
             #model_with_id
 
@@ -78,16 +81,12 @@ impl Input {
 
             impl ResourceDB for #controller {}
             impl Resource for #controller {
+                type Table = #schema::table;
                 type Model = #model;
             }
             impl ResourceWithId for #controller {
-                type ModelWithId = #model_with_id;
-            }
-            impl ResourceTable for #controller {
-                type DBTable = #schema::table;
-            }
-            impl ResourceSql for #controller {
                 type SQLType = #schema::SqlType;
+                type ModelWithId = #model_with_id;
             }
             impl ResourceController for #controller {
                 fn create(&self, model: &Self::Model) -> Result<Self::ModelWithId, Error> {
@@ -156,6 +155,7 @@ impl Input {
 ///     pub verification_id: Option<i32>,
 /// }
 /// #[derive(Serialize, Deserialize, FromSqlRow, Insertable, AsChangeset, Debug, PartialEq)]
+/// #[belongs_to(Verification)]
 /// #[table_name = "accounts"]
 /// pub struct Account {
 ///     pub uuid: Option<Uuid>,
@@ -178,19 +178,13 @@ impl Input {
 /// impl ResourceDB for AccountController {}
 ///
 /// impl ResourceWithId for AccountController {
+///     type SQLType = crate::schema::accounts::SqlType;
 ///     type ModelWithId = AccountWithId;
 /// }
 ///
 /// impl Resource for AccountController {
-///     type Model = Account;
-/// }
-///
-/// impl ResourceTable for AccountController {
 ///     type DBTable = crate::schema::accounts::table;
-/// }
-///
-/// impl ResourceSql for AccountController {
-///     type SQLType = crate::schema::accounts::SqlType;
+///     type Model = Account;
 /// }
 ///
 /// impl ResourceController for AccountController {
