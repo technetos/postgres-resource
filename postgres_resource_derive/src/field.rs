@@ -11,6 +11,7 @@ enum FieldAttr {
 
 #[derive(Debug)]
 pub struct Field {
+//    belongs_to: Option<proc_macro2::TokenStream>,
     attr: Vec<FieldAttr>,
     pub name: Ident,
     ty: Ident,

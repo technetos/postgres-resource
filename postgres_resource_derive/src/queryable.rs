@@ -1,6 +1,7 @@
-use crate::{builder::*, AsSnake};
+use crate::{builder::*, IdentExt};
 
 use syn::{parse::Result, Index};
+use heck::SnakeCase;
 
 struct QueryableRow;
 
@@ -65,7 +66,7 @@ pub struct Queryable;
 
 impl<'i> Builder<'i> for Queryable {
     fn build(self, input: &'i Input) -> Result<proc_macro2::TokenStream> {
-        let table = input.parsed_struct.as_snake_plural();
+        let table = input.parsed_struct.ident.append("s").snake_case();
         let fields = QueryableFields.build(input)?;
         let row = QueryableRow.build(input)?;
 

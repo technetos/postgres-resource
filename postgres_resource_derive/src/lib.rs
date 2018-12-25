@@ -22,35 +22,26 @@ use crate::{model::*, queryable::*, builder::*, r#struct::*};
 use proc_macro2::Span;
 use syn::{parse::Result, Ident};
 
+use heck::{CamelCase, SnakeCase};
+
 trait IdentExt {
     fn append(&self, string: &str) -> Ident;
+    fn camel_case(&self) -> Ident;
+    fn snake_case(&self) -> Ident;
 }
 
 impl IdentExt for syn::Ident {
     fn append(&self, string: &str) -> Ident {
         Ident::new(&format!("{}{}", self, string), self.span())
     }
-}
 
-trait AsSnake {
-    fn as_snake(&self) -> Ident;
-    fn as_snake_plural(&self) -> Ident;
-}
-
-fn camel_to_snake(string: &str) -> String {
-    let mut result = String::with_capacity(string.len());
-    result.push_str(&string[..1].to_lowercase());
-    for character in string[1..].chars() {
-        if character.is_uppercase() {
-            result.push('_');
-            for lowercase in character.to_lowercase() {
-                result.push(lowercase);
-            }
-        } else {
-            result.push(character);
-        }
+    fn camel_case(&self) -> Ident {
+        Ident::new(&self.to_string().to_camel_case(), self.span())
     }
-    result
+
+    fn snake_case(&self) -> Ident {
+        Ident::new(&self.to_string().to_snake_case(), self.span())
+    }
 }
 
 impl Input {
