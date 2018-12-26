@@ -51,14 +51,12 @@ impl Input {
 
     fn gen_model(&self) -> Result<proc_macro2::TokenStream> {
         let table_macro = TableMacro.build(&self)?;
-        let belongs_to = BelongsToMacro.build(&self)?;
 
         let model_with_id = ModelWithId.build(&self)?;
         let model = Model.build(&self)?;
 
         Ok(quote! {
             #[derive(Serialize, Deserialize, FromSqlRow, Associations, Identifiable, Debug, PartialEq)]
-            #belongs_to
             #table_macro
             #model_with_id
 

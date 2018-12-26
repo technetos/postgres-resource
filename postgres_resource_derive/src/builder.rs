@@ -1,8 +1,7 @@
 use crate::{r#struct::*, IdentExt};
 
 use proc_macro2::Span;
-use syn::{Ident, parse::Result, LitStr};
-use heck::CamelCase;
+use syn::{parse::Result, LitStr};
 
 pub struct Input {
     pub parsed_struct: Struct,
@@ -60,23 +59,5 @@ impl<'i> Builder<'i> for DatabaseConnection {
         } else {
             DefaultDatabaseConnection.build(input)
         }
-    }
-}
-
-pub struct BelongsToMacro;
-
-impl<'i> Builder<'i> for BelongsToMacro {
-    fn build(self, input: &'i Input) -> Result<proc_macro2::TokenStream> {
-        let mut macros = Vec::new();
-        input.parsed_struct.fields
-            .iter()
-            .filter(|field| field.fk())
-            .for_each(|field| {
-                let mut name = field.name.to_string();
-                name.truncate(name.len() - 2);
-                let model_name = Ident::new(&name.to_camel_case(), Span::call_site());
-                macros.push(quote!(#[belongs_to(#model_name)]));
-            });
-        Ok(quote!(#(#macros)*))
     }
 }
